@@ -6,6 +6,9 @@ import imutils # type: ignore
 from src.pose_fuctions import *
 from src.object_detection import *
 from src.face_functions import *
+from src.send_email import *
+from dotenv import load_dotenv
+load_dotenv()
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -14,7 +17,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cap2 = cv2.VideoCapture(1)
 cap2.set(3, 1280)
 cap2.set(4, 720)
-
 
 def face_system():
     prev_frame_time = 0
@@ -25,6 +27,8 @@ def face_system():
     new_dir = True
     eyes_movements, head_movements, mouth_movements, hand_movements = [], [], [], []
     warnings = [""]
+    warning_count = 0
+    collection_warnings = []
     
     with mp_hands.Hands(model_complexity=0) as hands:
         with mp_face_mesh.FaceMesh(max_num_faces=1, refine_landmarks=True) as face_mesh:
@@ -96,15 +100,23 @@ def face_system():
                     cv2.putText(image, warning_info, (7, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (45, 255, 255), 2,
                                 cv2.LINE_AA)
                 
-                if phone_warning or person_warning or warning_info:
-                    recording = True
-                    if new_dir:
-                        vidOutDir = f"data/external/video_log/{time.strftime('%Y%m%d-%H%M%S')}.avi"
-                        output = cv2.VideoWriter(vidOutDir, codec, 15, (1280, 720))
-                        new_dir = False
-                
+                current_warnings = [phone_warning, person_warning, warning_info]
+                for warning_msg in current_warnings:
+                    if warning_msg:
+                        collection_warnings.append(warning_msg)
+                        recording = True
+                        warning_count += 1
+                        if warning_count % 10 == 0:
+                            email_thread = threading.Thread(target=send_warning_email, args=(22006, collection_warnings.copy()))
+                            email_thread.start()
+                            collection_warnings.clear()
+                        if new_dir:
+                            vidOutDir = f"data/external/video_log/{time.strftime('%Y%m%d-%H%M%S')}.avi"
+                            output = cv2.VideoWriter(vidOutDir, codec, 15, (1280, 720))
+                            new_dir = False
+                    
                 prev_frame_time = show_fps(image, prev_frame_time)
-                
+                    
                 if recording:
                     if frame_rec <= 600:
                         output.write(image)
@@ -115,21 +127,21 @@ def face_system():
                         output.release()
                         new_dir = True
 
-                # Draw bounding boxes for detected cell phones
                 for obj in detected_objects:
                     x1, y1, x2, y2, conf, cls = obj
                     class_name = model.names[cls]
                     if class_name.lower() == 'cell phone':
                         cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                         cv2.putText(image, f"{class_name}: {conf:.2f}", (int(x1), int(y1) - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
                 cv2.imshow("Front camera", image)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
-    cap.release()
-    cv2.destroyAllWindows()
+        cap.release()
+        cv2.destroyAllWindows()
+
 
 
 def pose_system():
@@ -221,6 +233,6 @@ t1.start()
 t1.join()
 # t2.join()
 
-# cap.release()
-cap2.release()
+cap.release()
+# cap2.release()
 cv2.destroyAllWindows()
