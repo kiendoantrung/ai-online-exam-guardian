@@ -1,5 +1,7 @@
 # AI-Powered Online Exam Guardian System
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kiendoantrung/ai-online-exam-guardian)
+
 This project implements an AI-powered exam proctoring system using computer vision techniques to detect and prevent cheating during online exams.
 
 ## Table of Contents
@@ -43,4 +45,5 @@ To use the AI-Powered Online Exam Guardian System, follow these steps:
    ```
 
 4. View the video log in the `data\external\video_log` directory.
+
 
